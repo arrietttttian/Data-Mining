@@ -1,0 +1,209 @@
+---
+output:
+  html_document: default
+  pdf_document: default
+---
+#Recitation 2
+
+##Linear Regression & Cross Validation
+
+**Part 1: Simple Linear Regression**
+
+```{r}
+#Load library "MASS" and "ISLR"
+#If "ISLR" is not installed, run the following command first before loading the library
+
+#install.packages("ISLR")
+library(MASS)
+library(ISLR)
+```
+
+```{r}
+attach(Boston)
+names(Boston) #check variable names
+summary(Boston) #summary statistics
+```
+
+
+```{r}
+lm.fit=lm(medv~lstat,data=Boston) #linear regression of medv on lstat
+summary(lm.fit) #regression output
+```
+
+```{r}
+names(lm.fit) #check all information stored in lm.fit
+```
+
+```{r}
+lm.fit$coefficients #access only the coefficients of the regression
+```
+
+```{r}
+confint(lm.fit) #show 95% confidence interval for slopes and intercepts
+```
+
+
+```{r}
+predict(lm.fit, data.frame(lstat=c(5,10,15)),interval="confidence") #construct confidence intervals given new values of lstat
+```
+
+```{r}
+predict(lm.fit, data.frame(lstat=c(5,10,15)),interval="prediction") #construct predictive intervals given new values of lstat
+```
+
+```{r}
+plot(lstat,medv) #plot raw data
+abline(lm.fit) #plot regression line
+abline(lm.fit,lwd=3,col="red")
+```
+
+```{r}
+par(mfrow=c(2,2)) #plot multiple graphs together
+plot(lm.fit) 
+
+#Here we show the diagnostic plots for linear regression
+
+#Residuals vs Fitted: detect non-linearity
+#Nomral QQ: detect whether normality assumption is satisfied
+#Scale-Location: detect heteroscedasticity
+#Residuals vs Leverage: find influential points
+```
+
+**Part 2: Multiple Linear Regression**
+```{r}
+lm.fit=lm(medv~lstat+age, data=Boston) #run regression of medv on both lstat and age
+summary(lm.fit) #print summary table
+```
+
+```{r}
+lm.fit=lm(medv~.,data=Boston) #run regression of medv on all variables
+summary(lm.fit) #print summary table
+```
+
+```{r}
+lm.fit1=lm(medv~.-age,data=Boston) #run regression of medv on all variables except age
+summary(lm.fit1) #print summary table
+```
+
+
+**Part 3: Linear Regression with Interaction Terms**
+```{r}
+summary(lm(medv~lstat*age,data=Boston)) #run regression of medv on lstat, age and interaction term
+```
+
+**Part 4: Non-linear Transformations of the Predictors**
+```{r}
+lm.fit2=lm(medv~lstat+I(lstat^2)) #regress medv on lstat and lstat^2
+summary (lm.fit2)
+```
+
+```{r}
+lm.fit=lm(medv~lstat)
+anova(lm.fit ,lm.fit2) #perform anova test for model comparison
+```
+
+```{r}
+par(mfrow=c(2,2))
+plot(lm.fit2) #run diagnosis on new model
+```
+
+```{r}
+lm.fit5=lm(medv~poly(lstat ,5))
+summary (lm.fit5) #regress medv on a polynomial of lstat
+```
+
+```{r}
+summary (lm(medv~log(rm),data=Boston)) #regress medv on log(rm)
+```
+
+**Part 5: Qualitative Predictors**
+```{r}
+names(Carseats)
+```
+
+```{r}
+summary(Carseats$ShelveLoc)
+```
+
+```{r}
+lm.fit=lm(Sales~.+Income :Advertising +Price:Age ,data=Carseats )
+summary (lm.fit)
+```
+
+```{r}
+contrasts (Carseats$ShelveLoc) #check how dummy variables are constructed
+# If no 1 can be seen, it is a benchmark (in this case Bad)
+```
+**Part 6: The Validation Set Approach**
+```{r}
+library(ISLR)
+set.seed(1) #set a seed for random number generator #can be any number
+attach(Auto)
+nrow(Auto) #check the number of observations of dataset Auto
+```
+
+```{r}
+# validation set approach
+train=sample(392,196) #draw a random sample of 196 obs out of 392, rest are testing samples
+lm.fit=lm(mpg~horsepower ,data=Auto ,subset=train)
+```
+
+```{r}
+# construct validation error using all data not in training sample
+# for each one predict and find squared difference
+mean((mpg-predict(lm.fit ,Auto))[-train ]^2) #calculate mean squared error using test set
+```
+
+```{r}
+lm.fit2=lm(mpg~poly(horsepower ,2),data=Auto , subset=train) #regress mpg on a 2nd order polynomial of horsepower
+mean((mpg -predict (lm.fit2 ,Auto ))[- train]^2)
+
+lm.fit3=lm(mpg~poly(horsepower ,3),data=Auto , subset=train) #regress mpg on a 3rd order polynomial of horsepower
+mean((mpg -predict (lm.fit3 ,Auto ))[- train]^2)
+# upgrade to 3rd polynomial, still get a larger error
+```
+
+**Part 7: Leave-One-Out Cross-Validation**
+```{r}
+glm.fit=glm(mpg~horsepower ,data=Auto) #glm denotes generalized linear model, which includes linear regression, logistic regression, possion regression and so on. Without specifying the family argument of function glm, it performs linear regression.
+
+coef(glm.fit)
+```
+
+```{r}
+#compare results with lm command
+lm.fit=lm(mpg~horsepower ,data=Auto)
+coef(lm.fit) # same regression coefficients
+```
+```{r}
+library(boot)
+cv.err=cv.glm(Auto,glm.fit) #calculate test error under LOOCV
+cv.err$delta[1] #display test error
+```
+
+
+```{r}
+#Here we compare polynomial regression of mpg on horsepwer for polynomials of order 1 to 5. 
+
+
+cv.error=rep(0,5)
+for (i in 1:5){
+  glm.fit=glm(mpg~poly(horsepower ,i),data=Auto)
+  cv.error[i]=cv.glm(Auto ,glm.fit)$delta[1]
+}
+
+cv.error
+```
+
+**Part 8: k-Fold Cross-Validation**
+```{r}
+#Here we do the same analysis using 10-fold CV
+
+set.seed(17)
+cv.error.10=rep(0,5)
+for (i in 1:5){
+  glm.fit=glm(mpg~poly(horsepower,i),data=Auto)
+  cv.error.10[i]=cv.glm(Auto,glm.fit,K=10)$delta[1]
+}
+cv.error.10
+```
