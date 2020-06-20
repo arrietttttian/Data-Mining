@@ -1,0 +1,97 @@
+---
+title: "Recitation 5"
+author: "Di Zhang"
+date: "February 20, 2020"
+output: html_document
+---
+
+###Logistic Regression/LDA/QDA/Naive Bayes/Diagonal LDA###
+
+```{r}
+library(ISLR)
+attach(Smarket)
+
+#construct training and test data
+train=(Year<2005) 
+Smarket.2005=Smarket[!train,]
+Direction.2005=Direction[!train]
+```
+
+
+**Logistic Regression**
+```{r}
+glm.fit=glm(Direction~Lag1+Lag2+Lag3+Lag4+Lag5+Volume,data=Smarket, family=binomial, subset=train) #fit a logistic regression
+summary(glm.fit) #print regression output
+```
+
+
+```{r}
+glm.probs=predict(glm.fit,Smarket.2005,type="response") #calculate the probability that S&P goes up for each trading in 2005
+glm.pred=rep("Down",252) #create a vector of length 252 and set default value for each element as "Down"
+glm.pred[glm.probs>0.5]="Up" #switch from down to up if the predicted probability of going up is greater than 0.5
+```
+
+```{r}
+table(glm.pred,Direction.2005) #print confusion matrix
+mean(glm.pred==Direction.2005) #calculate accuracy
+```
+
+**Linear Discriminant Analysis**
+```{r}
+library(MASS)
+lda.fit=lda(Direction~Lag1+Lag2+Lag3+Lag4+Lag5+Volume,data=Smarket,subset=train) #fit linear discriminant analysis
+lda.fit
+```
+```{r}
+lda.pred=predict(lda.fit,Smarket.2005) #make predictions for trading days in 2005
+lda.class=lda.pred$class #access prediction label
+table(lda.class,Direction.2005) #print confusion matrix
+mean(lda.class==Direction.2005) #calculate accuracy
+```
+
+**Quadratic Discriminant Analysis**
+```{r}
+qda.fit=qda(Direction~Lag1+Lag2+Lag3+Lag4+Lag5+Volume,data=Smarket, subset=train) #fit a quadratic discriminant analysis
+qda.fit
+```
+
+```{r}
+qda.pred=predict(qda.fit,Smarket.2005) #make predictions for trading days in 2005
+qda.class=qda.pred$class #access prediction label
+table(qda.class,Direction.2005) #print confusion matrix
+mean(qda.class==Direction.2005) #calculate accuracy
+```
+
+**Naive Bayes Classifier**
+```{r}
+library(e1071)
+
+NBClassifier=naiveBayes(Direction~Lag1+Lag2+Lag3+Lag4+Lag5+Volume,data=Smarket, subset=train) #fit a Naive Bayes classifier
+nbc.predict=predict(NBClassifier, Smarket.2005, type="class") #predict labels for trading days in 2005
+```
+
+```{r}
+table(nbc.predict,Direction.2005) #print confusion matrix
+mean(nbc.predict==Direction.2005) #calculate accuracy
+```
+
+**Diagonal Linear Discriminant Analysis**
+
+```{r}
+#install.packages("remotes")
+#remotes::install_github("ramhiser/sparsediscrim")
+```
+
+
+```{r}
+library(sparsediscrim)
+dlda.fit=dlda(Direction~Lag1+Lag2+Lag3+Lag4+Lag5+Volume,data=Smarket,subset=train) #fit diagonal LDA
+```
+
+```{r}
+dlda.pred=predict(dlda.fit,Smarket.2005[,3:8]) #make predictions for trading days in 2005
+dlda.class=dlda.pred$class #access prediction label
+table(dlda.class,Direction.2005) #print confusion matrix
+mean(dlda.class==Direction.2005) #calculate accuracy
+```
+
